@@ -1,0 +1,6 @@
+export { lint, type LintResult } from './linter.js'
+export { loadConfig } from './config/loader.js'
+export { type DepsLintConfig, type DepsLintPackageConfig } from './config/types.js'
+export { type Diagnostic, type DiagnosticType } from './checks/types.js'
+export { formatText, formatJson } from './output/formatter.js'
+export { applyFixes, isFixable } from './fixer.js'
