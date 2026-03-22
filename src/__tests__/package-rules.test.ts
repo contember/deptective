@@ -19,6 +19,7 @@ import { missingPeerDependencyRule } from '../checks/rules/missing-peer-dependen
 import { bannedDependencyRule } from '../checks/rules/banned-dependency.js'
 import { dynamicTypeImportRule } from '../checks/rules/dynamic-type-import.js'
 import { enforceCatalogRule } from '../checks/rules/enforce-catalog.js'
+import { extraneousTypesPackageRule } from '../checks/rules/extraneous-types-package.js'
 
 function createContext(overrides: Partial<CheckContext> = {}): CheckContext {
 	return {
@@ -623,5 +624,103 @@ describe('enforce-catalog', () => {
 		const diags = enforceCatalogRule.check(ctx)
 		expect(diags).toHaveLength(1)
 		expect(diags[0].module).toBe('bar')
+	})
+})
+
+// --- extraneous-types-package ---
+
+describe('extraneous-types-package', () => {
+	test('reports @types package when base package has types field', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'deptective-'))
+		mkdirSync(join(dir, 'node_modules', 'react'), { recursive: true })
+		writeFileSync(join(dir, 'node_modules', 'react', 'package.json'), JSON.stringify({
+			name: 'react',
+			types: './index.d.ts',
+		}))
+
+		const ctx = createContext({
+			rootDir: dir,
+			packageDir: dir,
+			devDependencies: { '@types/react': '^18.0.0' },
+		})
+		const diags = extraneousTypesPackageRule.check(ctx)
+		expect(diags).toHaveLength(1)
+		expect(diags[0].type).toBe('extraneous-types-package')
+		expect(diags[0].module).toBe('@types/react')
+		expect(diags[0].message).toContain('react')
+	})
+
+	test('reports when base package has typings field', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'deptective-'))
+		mkdirSync(join(dir, 'node_modules', 'foo'), { recursive: true })
+		writeFileSync(join(dir, 'node_modules', 'foo', 'package.json'), JSON.stringify({
+			name: 'foo',
+			typings: './dist/index.d.ts',
+		}))
+
+		const ctx = createContext({
+			rootDir: dir,
+			packageDir: dir,
+			dependencies: { '@types/foo': '^1.0.0' },
+		})
+		expect(extraneousTypesPackageRule.check(ctx)).toHaveLength(1)
+	})
+
+	test('reports when base package has types in exports', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'deptective-'))
+		mkdirSync(join(dir, 'node_modules', 'zod'), { recursive: true })
+		writeFileSync(join(dir, 'node_modules', 'zod', 'package.json'), JSON.stringify({
+			name: 'zod',
+			exports: {
+				'.': { types: './index.d.ts', import: './index.mjs' },
+			},
+		}))
+
+		const ctx = createContext({
+			rootDir: dir,
+			packageDir: dir,
+			devDependencies: { '@types/zod': '^3.0.0' },
+		})
+		expect(extraneousTypesPackageRule.check(ctx)).toHaveLength(1)
+	})
+
+	test('does not report when base package has no types', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'deptective-'))
+		mkdirSync(join(dir, 'node_modules', 'express'), { recursive: true })
+		writeFileSync(join(dir, 'node_modules', 'express', 'package.json'), JSON.stringify({
+			name: 'express',
+		}))
+
+		const ctx = createContext({
+			rootDir: dir,
+			packageDir: dir,
+			devDependencies: { '@types/express': '^4.0.0' },
+		})
+		expect(extraneousTypesPackageRule.check(ctx)).toHaveLength(0)
+	})
+
+	test('does not report when base package is not installed', () => {
+		const ctx = createContext({
+			devDependencies: { '@types/unknown-pkg': '^1.0.0' },
+		})
+		expect(extraneousTypesPackageRule.check(ctx)).toHaveLength(0)
+	})
+
+	test('handles scoped @types packages', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'deptective-'))
+		mkdirSync(join(dir, 'node_modules', '@babel', 'core'), { recursive: true })
+		writeFileSync(join(dir, 'node_modules', '@babel', 'core', 'package.json'), JSON.stringify({
+			name: '@babel/core',
+			types: './lib/index.d.ts',
+		}))
+
+		const ctx = createContext({
+			rootDir: dir,
+			packageDir: dir,
+			devDependencies: { '@types/babel__core': '^7.0.0' },
+		})
+		const diags = extraneousTypesPackageRule.check(ctx)
+		expect(diags).toHaveLength(1)
+		expect(diags[0].message).toContain('@babel/core')
 	})
 })

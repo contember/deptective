@@ -10,6 +10,7 @@ import { unusedDependencyRule } from '../checks/rules/unused-dependency.js'
 import { typeOnlyDependencyRule } from '../checks/rules/type-only-dependency.js'
 import { missingReferenceRule } from '../checks/rules/missing-reference.js'
 import { unusedReferenceRule } from '../checks/rules/unused-reference.js'
+import { extraneousTypesPackageRule } from '../checks/rules/extraneous-types-package.js'
 import { isFixable, applyFixes } from '../fixer.js'
 
 function createTempDir(): string {
@@ -52,6 +53,7 @@ describe('isFixable', () => {
 		expect(isFixable('missing-reference')).toBe(true)
 		expect(isFixable('unused-reference')).toBe(true)
 		expect(isFixable('type-only-dependency')).toBe(true)
+		expect(isFixable('extraneous-types-package')).toBe(true)
 	})
 
 	test('returns false for non-fixable types', () => {
@@ -247,6 +249,45 @@ describe('unused-reference fix', () => {
 		const content = readFileSync(join(dir, 'tsconfig.json'), 'utf-8')
 		expect(content).not.toContain('../src')
 		expect(content).toContain('../shared')
+	})
+})
+
+// --- extraneous-types-package fix ---
+
+describe('extraneous-types-package fix', () => {
+	test('removes @types package from devDependencies', () => {
+		const dir = createTempDir()
+		writePkgJson(dir, {
+			name: 'test-pkg',
+			devDependencies: { '@types/react': '^18.0.0', 'vitest': '^1.0.0' },
+		})
+
+		const result = extraneousTypesPackageRule.fix!(
+			[diag('extraneous-types-package', dir, '@types/react')],
+			createFixContext(),
+		)
+
+		expect(result.fixed).toBe(1)
+		const pkg = readPkgJson(dir)
+		expect((pkg.devDependencies as any)['@types/react']).toBeUndefined()
+		expect((pkg.devDependencies as any).vitest).toBe('^1.0.0')
+	})
+
+	test('removes @types package from dependencies', () => {
+		const dir = createTempDir()
+		writePkgJson(dir, {
+			name: 'test-pkg',
+			dependencies: { '@types/node': '^20.0.0' },
+		})
+
+		const result = extraneousTypesPackageRule.fix!(
+			[diag('extraneous-types-package', dir, '@types/node')],
+			createFixContext(),
+		)
+
+		expect(result.fixed).toBe(1)
+		const pkg = readPkgJson(dir)
+		expect(pkg.dependencies).toBeUndefined()
 	})
 })
 

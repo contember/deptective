@@ -17,6 +17,7 @@ export type DiagnosticType =
 	| 'banned-dependency'
 	| 'dynamic-type-import'
 	| 'enforce-catalog'
+	| 'extraneous-types-package'
 	| 'circular-workspace-dependency'
 	| 'inconsistent-version'
 

@@ -68,8 +68,8 @@ if (fixable.length > 0) {
 |------|---------|-------------|
 | `missing-dependency` | Yes | Module is imported but missing from `package.json` dependencies |
 | `unused-dependency` | Yes | Module is in dependencies but never imported in source |
-| `missing-reference` | Yes | Workspace package is imported but not in tsconfig `references` |
-| `unused-reference` | Yes | Tsconfig reference exists but the package is not imported |
+| `missing-reference` | Yes | Import requires a tsconfig project reference that is missing |
+| `unused-reference` | Yes | Tsconfig project reference is not used by any import |
 | `type-only-dependency` | Yes | Module is only used as `import type` — should be in `devDependencies` |
 | `forbidden-directory-import` | No | Subpath import of a package that does not export it (e.g. `foo/internal`) |
 | `forbidden-dot-import` | No | Relative import of `.` or `..` |
@@ -80,6 +80,7 @@ if (fixable.length > 0) {
 | `banned-dependency` | No | Import of a banned dependency |
 | `dynamic-type-import` | No | `import('Foo')` in type position — use `import type` instead |
 | `enforce-catalog` | No | Dependency version must use `catalog:` or `workspace:` protocol |
+| `extraneous-types-package` | Yes | `@types/x` package is unnecessary because `x` ships its own types |
 
 ### Workspace-level rules
 

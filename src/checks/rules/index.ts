@@ -13,6 +13,7 @@ import { missingPeerDependencyRule } from './missing-peer-dependency.js'
 import { bannedDependencyRule } from './banned-dependency.js'
 import { dynamicTypeImportRule } from './dynamic-type-import.js'
 import { enforceCatalogRule } from './enforce-catalog.js'
+import { extraneousTypesPackageRule } from './extraneous-types-package.js'
 import { circularWorkspaceDependencyRule } from './circular-workspace-dependency.js'
 import { inconsistentVersionRule } from './inconsistent-version.js'
 
@@ -31,6 +32,7 @@ export const allRules: Rule[] = [
 	bannedDependencyRule,
 	dynamicTypeImportRule,
 	enforceCatalogRule,
+	extraneousTypesPackageRule,
 	circularWorkspaceDependencyRule,
 	inconsistentVersionRule,
 ]
