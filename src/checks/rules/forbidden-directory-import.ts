@@ -1,4 +1,5 @@
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 import { isSubpathExported } from '../../exports/resolver.js'
 
 export const forbiddenDirectoryImportRule: PackageRule = {
@@ -7,7 +8,7 @@ export const forbiddenDirectoryImportRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const allowed = new Set(ctx.config.allowedDirectoryImports)
 		const exportsCache = new Map<string, boolean | null>()
 

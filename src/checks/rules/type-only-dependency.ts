@@ -1,5 +1,6 @@
 import type { PackageRule } from '../rule.js'
 import type { FixAction } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 import { groupByPackageDir, mergeFixResults, modifyPackageJson } from '../fix-utils.js'
 
 export const typeOnlyDependencyRule: PackageRule = {
@@ -8,7 +9,7 @@ export const typeOnlyDependencyRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 
 		// Group imports by package name, track if any is non-type-only
 		const hasValueImport = new Map<string, boolean>()

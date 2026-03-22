@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 import { resolveDepPackageJson } from '../version-resolver.js'
 
 export const missingPeerDependencyRule: PackageRule = {
@@ -8,7 +9,7 @@ export const missingPeerDependencyRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const allDeps = { ...ctx.dependencies, ...ctx.peerDependencies }
 		const reported = new Set<string>()
 

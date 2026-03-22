@@ -1,5 +1,6 @@
 import type { PackageRule } from '../rule.js'
 import type { FixAction } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 import { groupByPackageDir, mergeFixResults, modifyPackageJson } from '../fix-utils.js'
 
 export const unusedDependencyRule: PackageRule = {
@@ -8,7 +9,7 @@ export const unusedDependencyRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const allowed = new Set(ctx.config.allowedUnusedDependencies)
 
 		for (const dep of Object.keys(ctx.dependencies)) {

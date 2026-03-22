@@ -1,4 +1,5 @@
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 
 export const bannedDependencyRule: PackageRule = {
 	id: 'banned-dependency',
@@ -6,7 +7,7 @@ export const bannedDependencyRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const banned = ctx.config.bannedDependencies
 
 		for (const imp of ctx.resolvedImports) {

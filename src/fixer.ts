@@ -1,6 +1,6 @@
 import type { Diagnostic, DiagnosticType } from './checks/types.js'
 import type { WorkspacePackage } from './workspace/types.js'
-import type { FixResult } from './checks/rule.js'
+import type { FixAction, FixResult } from './checks/rule.js'
 import { allRules } from './checks/rules/index.js'
 
 export type { FixAction, FixResult } from './checks/rule.js'
@@ -28,7 +28,7 @@ export function applyFixes(diagnostics: Diagnostic[], opts: ApplyFixesOptions): 
 	}
 
 	let fixed = 0
-	const actions: import('./checks/rule.js').FixAction[] = []
+	const actions: FixAction[] = []
 	const errors: string[] = []
 
 	for (const rule of allRules) {

@@ -1,6 +1,7 @@
 import * as path from 'node:path'
 import { minimatch } from '../../utils/minimatch.js'
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 
 const configFileRe = /(?:^|[/\\])[\w.-]+\.config(?:\.[\w-]+)?\.[cm]?[jt]sx?$/
 
@@ -10,7 +11,7 @@ export const devDependencyInSourceRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const testPatterns = ctx.config.testPatterns
 		const reported = new Set<string>()
 

@@ -1,4 +1,5 @@
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 
 export const selfImportRule: PackageRule = {
 	id: 'self-import',
@@ -6,7 +7,7 @@ export const selfImportRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		for (const imp of ctx.resolvedImports) {
 			if (imp.packageName === ctx.packageName) {
 				diagnostics.push({

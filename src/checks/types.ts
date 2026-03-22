@@ -36,6 +36,7 @@ export interface CheckContext {
 	rootDir: string
 	importedPackages: Set<string>
 	resolvedImports: ResolvedImport[]
+	importRecords: ImportRecord[]
 	dotImports: ImportRecord[]
 	/** Directory containing the tsconfig file, or null if no tsconfig */
 	tsconfigDir: string | null

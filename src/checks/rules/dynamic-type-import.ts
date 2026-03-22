@@ -1,4 +1,5 @@
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 
 export const dynamicTypeImportRule: PackageRule = {
 	id: 'dynamic-type-import',
@@ -6,16 +7,16 @@ export const dynamicTypeImportRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
-		for (const imp of ctx.resolvedImports) {
-			if (!imp.isImportTypeExpression) continue
+		const diagnostics: Diagnostic[] = []
+		for (const record of ctx.importRecords) {
+			if (!record.isImportTypeExpression) continue
 			diagnostics.push({
 				type: 'dynamic-type-import',
 				packageName: ctx.packageName,
 				packageDir: ctx.packageDir,
-				message: `Dynamic type import \`import('${imp.fullSpecifier}')\` — use \`import type\` instead`,
-				file: imp.file,
-				module: imp.fullSpecifier,
+				message: `Dynamic type import \`import('${record.specifier}')\` — use \`import type\` instead`,
+				file: record.file,
+				module: record.specifier,
 			})
 		}
 		return diagnostics

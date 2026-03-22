@@ -47,6 +47,7 @@ export async function analyzePackage(
 		rootDir,
 		importedPackages,
 		resolvedImports: resolved,
+		importRecords: records,
 		dotImports,
 		tsconfigDir,
 		referencedDirs,

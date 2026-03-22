@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import JSON5 from 'json5'
 import type { PackageRule } from '../rule.js'
 import type { FixAction } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 import { groupByPackageDir, mergeFixResults, findTsConfigPath, removeReferences } from '../fix-utils.js'
 
 export const unusedReferenceRule: PackageRule = {
@@ -12,7 +13,7 @@ export const unusedReferenceRule: PackageRule = {
 
 	check(ctx) {
 		if (!ctx.tsconfigDir) return []
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 
 		for (const [refDir, refPath] of ctx.referencedDirs) {
 			if (ctx.importTargetDirs.has(refDir)) continue

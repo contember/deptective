@@ -28,6 +28,7 @@ function createContext(overrides: Partial<CheckContext> = {}): CheckContext {
 		rootDir: '/tmp',
 		importedPackages: new Set(),
 		resolvedImports: [],
+		importRecords: [],
 		dotImports: [],
 		tsconfigDir: null,
 		referencedDirs: new Map(),
@@ -552,16 +553,26 @@ describe('banned-dependency', () => {
 // --- dynamic-type-import ---
 
 describe('dynamic-type-import', () => {
-	test('reports import() in type position', () => {
+	test('reports import() in type position for package imports', () => {
 		const ctx = createContext({
-			resolvedImports: [createImport({
-				fullSpecifier: 'foo',
-				isImportTypeExpression: true,
-			})],
+			importRecords: [
+				{ specifier: 'foo', file: '/tmp/test-pkg/src/index.ts', isTypeOnly: true, isImportTypeExpression: true },
+			],
 		})
 		const diags = dynamicTypeImportRule.check(ctx)
 		expect(diags).toHaveLength(1)
 		expect(diags[0].type).toBe('dynamic-type-import')
+	})
+
+	test('reports import() in type position for relative imports', () => {
+		const ctx = createContext({
+			importRecords: [
+				{ specifier: '../types', file: '/tmp/test-pkg/src/index.ts', isTypeOnly: true, isImportTypeExpression: true },
+			],
+		})
+		const diags = dynamicTypeImportRule.check(ctx)
+		expect(diags).toHaveLength(1)
+		expect(diags[0].message).toContain('../types')
 	})
 
 })

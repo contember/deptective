@@ -1,4 +1,5 @@
 import type { PackageRule } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 
 export const enforceCatalogRule: PackageRule = {
 	id: 'enforce-catalog',
@@ -9,7 +10,7 @@ export const enforceCatalogRule: PackageRule = {
 		const fields = ctx.config.enforceCatalog
 		if (fields.length === 0) return []
 
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const depFields: Record<string, Record<string, string>> = {
 			dependencies: ctx.dependencies,
 			devDependencies: ctx.devDependencies,

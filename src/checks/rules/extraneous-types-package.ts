@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
 import type { PackageRule } from '../rule.js'
 import type { FixAction } from '../rule.js'
+import type { Diagnostic } from '../types.js'
 import { resolveDepPackageJson } from '../version-resolver.js'
 import { groupByPackageDir, mergeFixResults, modifyPackageJson } from '../fix-utils.js'
 
@@ -10,7 +11,7 @@ export const extraneousTypesPackageRule: PackageRule = {
 	scope: 'package',
 
 	check(ctx) {
-		const diagnostics: import('../types.js').Diagnostic[] = []
+		const diagnostics: Diagnostic[] = []
 		const allDeps = { ...ctx.dependencies, ...ctx.devDependencies }
 
 		for (const depName of Object.keys(allDeps)) {
