@@ -175,53 +175,78 @@ describe('type-only-dependency fix', () => {
 // --- missing-reference fix ---
 
 describe('missing-reference fix', () => {
-	test('adds tsconfig reference', () => {
+	test('adds tsconfig reference by path', () => {
 		const dir = createTempDir()
-		const libDir = join(dir, 'packages', 'lib')
-		mkdirSync(libDir, { recursive: true })
-		writeFileSync(join(libDir, 'tsconfig.json'), '{}')
-
 		writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
 			references: [],
 		}, null, '\t'))
 
-		const libPkg: WorkspacePackage = { name: 'lib', dir: libDir, packageJson: { name: 'lib' } }
-
 		const result = missingReferenceRule.fix!(
-			[diag('missing-reference', dir, 'lib')],
-			createFixContext({ packageIndex: new Map([['lib', libPkg]]) }),
+			[diag('missing-reference', dir, './packages/lib')],
+			createFixContext(),
 		)
 
 		expect(result.fixed).toBe(1)
 		const content = readFileSync(join(dir, 'tsconfig.json'), 'utf-8')
 		expect(content).toContain('packages/lib')
 	})
+
+	test('adds non-package reference (e.g. ../src)', () => {
+		const dir = createTempDir()
+		writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
+			references: [],
+		}, null, '\t'))
+
+		const result = missingReferenceRule.fix!(
+			[diag('missing-reference', dir, '../src')],
+			createFixContext(),
+		)
+
+		expect(result.fixed).toBe(1)
+		const content = readFileSync(join(dir, 'tsconfig.json'), 'utf-8')
+		expect(content).toContain('../src')
+	})
 })
 
 // --- unused-reference fix ---
 
 describe('unused-reference fix', () => {
-	test('removes tsconfig reference', () => {
+	test('removes tsconfig reference by path', () => {
 		const dir = createTempDir()
-		const libDir = join(dir, 'packages', 'lib')
-		mkdirSync(libDir, { recursive: true })
-
 		writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
 			references: [
 				{ path: './packages/lib' },
 			],
 		}, null, '\t') + '\n')
 
-		const libPkg: WorkspacePackage = { name: 'lib', dir: libDir, packageJson: { name: 'lib' } }
-
 		const result = unusedReferenceRule.fix!(
-			[diag('unused-reference', dir, 'lib')],
-			createFixContext({ packageIndex: new Map([['lib', libPkg]]) }),
+			[diag('unused-reference', dir, './packages/lib')],
+			createFixContext(),
 		)
 
 		expect(result.fixed).toBe(1)
 		const content = readFileSync(join(dir, 'tsconfig.json'), 'utf-8')
 		expect(content).not.toContain('packages/lib')
+	})
+
+	test('removes non-package reference', () => {
+		const dir = createTempDir()
+		writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
+			references: [
+				{ path: '../src' },
+				{ path: '../shared' },
+			],
+		}, null, '\t') + '\n')
+
+		const result = unusedReferenceRule.fix!(
+			[diag('unused-reference', dir, '../src')],
+			createFixContext(),
+		)
+
+		expect(result.fixed).toBe(1)
+		const content = readFileSync(join(dir, 'tsconfig.json'), 'utf-8')
+		expect(content).not.toContain('../src')
+		expect(content).toContain('../shared')
 	})
 })
 

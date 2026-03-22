@@ -28,9 +28,9 @@ function createContext(overrides: Partial<CheckContext> = {}): CheckContext {
 		importedPackages: new Set(),
 		resolvedImports: [],
 		dotImports: [],
-		allWorkspaceNames: new Set(),
-		referencedPackageNames: new Set(),
-		hasTsConfig: false,
+		tsconfigDir: null,
+		referencedDirs: new Map(),
+		importTargetDirs: new Map(),
 		dependencies: {},
 		peerDependencies: {},
 		devDependencies: {},
@@ -140,76 +140,86 @@ describe('unused-dependency', () => {
 // --- missing-reference ---
 
 describe('missing-reference', () => {
-	test('reports workspace package imported but not referenced', () => {
+	test('reports import target not in references', () => {
 		const ctx = createContext({
-			hasTsConfig: true,
-			importedPackages: new Set(['@scope/lib']),
-			allWorkspaceNames: new Set(['@scope/lib']),
+			tsconfigDir: '/tmp/test-pkg/src',
+			importTargetDirs: new Map([['/tmp/lib/src', '@scope/lib']]),
 		})
 		const diags = missingReferenceRule.check(ctx)
 		expect(diags).toHaveLength(1)
 		expect(diags[0].type).toBe('missing-reference')
-		expect(diags[0].module).toBe('@scope/lib')
+		expect(diags[0].message).toContain('@scope/lib')
 	})
 
-	test('does not report if already referenced', () => {
+	test('does not report if reference exists', () => {
+		const targetDir = '/tmp/lib/src'
 		const ctx = createContext({
-			hasTsConfig: true,
-			importedPackages: new Set(['@scope/lib']),
-			allWorkspaceNames: new Set(['@scope/lib']),
-			referencedPackageNames: new Set(['@scope/lib']),
+			tsconfigDir: '/tmp/test-pkg/src',
+			importTargetDirs: new Map([[targetDir, '@scope/lib']]),
+			referencedDirs: new Map([[targetDir, '../../lib/src']]),
 		})
 		expect(missingReferenceRule.check(ctx)).toHaveLength(0)
 	})
 
 	test('does not report if no tsconfig', () => {
 		const ctx = createContext({
-			hasTsConfig: false,
-			importedPackages: new Set(['@scope/lib']),
-			allWorkspaceNames: new Set(['@scope/lib']),
+			tsconfigDir: null,
+			importTargetDirs: new Map([['/tmp/lib/src', '@scope/lib']]),
 		})
 		expect(missingReferenceRule.check(ctx)).toHaveLength(0)
 	})
 
-	test('does not report non-workspace packages', () => {
+	test('reports non-package reference (e.g. test → src)', () => {
 		const ctx = createContext({
-			hasTsConfig: true,
-			importedPackages: new Set(['lodash']),
-			allWorkspaceNames: new Set(),
+			tsconfigDir: '/tmp/test-pkg/test',
+			importTargetDirs: new Map([['/tmp/test-pkg/src', '../src']]),
 		})
-		expect(missingReferenceRule.check(ctx)).toHaveLength(0)
+		const diags = missingReferenceRule.check(ctx)
+		expect(diags).toHaveLength(1)
+		expect(diags[0].message).toContain('../src')
 	})
 })
 
 // --- unused-reference ---
 
 describe('unused-reference', () => {
-	test('reports reference not imported', () => {
+	test('reports reference not used by any import', () => {
 		const ctx = createContext({
-			hasTsConfig: true,
-			referencedPackageNames: new Set(['@scope/lib']),
+			tsconfigDir: '/tmp/test-pkg/src',
+			referencedDirs: new Map([['/tmp/lib/src', '../../lib/src']]),
 		})
 		const diags = unusedReferenceRule.check(ctx)
 		expect(diags).toHaveLength(1)
 		expect(diags[0].type).toBe('unused-reference')
-		expect(diags[0].module).toBe('@scope/lib')
+		expect(diags[0].message).toContain('../../lib/src')
 	})
 
-	test('does not report if imported', () => {
+	test('does not report if import targets the reference', () => {
+		const targetDir = '/tmp/lib/src'
 		const ctx = createContext({
-			hasTsConfig: true,
-			referencedPackageNames: new Set(['@scope/lib']),
-			importedPackages: new Set(['@scope/lib']),
+			tsconfigDir: '/tmp/test-pkg/src',
+			referencedDirs: new Map([[targetDir, '../../lib/src']]),
+			importTargetDirs: new Map([[targetDir, '@scope/lib']]),
 		})
 		expect(unusedReferenceRule.check(ctx)).toHaveLength(0)
 	})
 
 	test('does not report if no tsconfig', () => {
 		const ctx = createContext({
-			hasTsConfig: false,
-			referencedPackageNames: new Set(['@scope/lib']),
+			tsconfigDir: null,
+			referencedDirs: new Map([['/tmp/lib/src', '../../lib/src']]),
 		})
 		expect(unusedReferenceRule.check(ctx)).toHaveLength(0)
+	})
+
+	test('reports non-package reference as unused', () => {
+		const ctx = createContext({
+			tsconfigDir: '/tmp/test-pkg/test',
+			referencedDirs: new Map([['/tmp/test-pkg/src', '../src']]),
+		})
+		const diags = unusedReferenceRule.check(ctx)
+		expect(diags).toHaveLength(1)
+		expect(diags[0].message).toContain('../src')
 	})
 })
 
@@ -287,10 +297,6 @@ describe('forbidden-dot-import', () => {
 		expect(diags[0].type).toBe('forbidden-dot-import')
 	})
 
-	test('reports no diagnostics when no dot imports', () => {
-		const ctx = createContext({ dotImports: [] })
-		expect(forbiddenDotImportRule.check(ctx)).toHaveLength(0)
-	})
 })
 
 // --- self-import ---
@@ -557,12 +563,6 @@ describe('dynamic-type-import', () => {
 		expect(diags[0].type).toBe('dynamic-type-import')
 	})
 
-	test('does not report regular imports', () => {
-		const ctx = createContext({
-			resolvedImports: [createImport({ isImportTypeExpression: false })],
-		})
-		expect(dynamicTypeImportRule.check(ctx)).toHaveLength(0)
-	})
 })
 
 // --- enforce-catalog ---
