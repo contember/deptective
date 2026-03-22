@@ -36,9 +36,12 @@ export interface CheckContext {
 	importedPackages: Set<string>
 	resolvedImports: ResolvedImport[]
 	dotImports: ImportRecord[]
-	allWorkspaceNames: Set<string>
-	referencedPackageNames: Set<string>
-	hasTsConfig: boolean
+	/** Directory containing the tsconfig file, or null if no tsconfig */
+	tsconfigDir: string | null
+	/** Resolved tsconfig reference dirs: absoluteDir → original ref path */
+	referencedDirs: Map<string, string>
+	/** Import target project dirs: absoluteDir → label (package name or relative path) */
+	importTargetDirs: Map<string, string>
 	dependencies: Record<string, string>
 	peerDependencies: Record<string, string>
 	devDependencies: Record<string, string>

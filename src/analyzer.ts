@@ -4,7 +4,7 @@ import type { Diagnostic } from './checks/types.js'
 import { collectImports } from './imports/collector.js'
 import { resolveImports } from './imports/resolver.js'
 import { readTsConfig } from './tsconfig/reader.js'
-import { resolveReferencedPackageNames } from './tsconfig/references.js'
+import { resolveReferenceDirs, resolveImportTargetDirs } from './tsconfig/project-resolver.js'
 import { runChecks } from './checks/runner.js'
 import { defaultConfig } from './config/defaults.js'
 
@@ -28,14 +28,18 @@ export async function analyzePackage(
 	}
 	const tsconfig = await readTsConfig(pkg.dir, pkgConfig.tsconfigPath)
 	const tsconfigPaths = tsconfig?.paths ?? {}
+	const tsconfigDir = tsconfig?.configDir ?? null
 
 	const { resolved, dotImports } = resolveImports(records, tsconfigPaths)
 	const importedPackages = new Set(resolved.map(r => r.packageName))
-	const allWorkspaceNames = new Set(allPackages.map(p => p.name))
 
-	const referencedPackageNames = tsconfig
-		? new Set(resolveReferencedPackageNames(tsconfig, allPackages))
-		: new Set<string>()
+	const referencedDirs = tsconfig
+		? resolveReferenceDirs(tsconfig)
+		: new Map<string, string>()
+
+	const importTargetDirs = tsconfigDir
+		? resolveImportTargetDirs(records, resolved, allPackages, tsconfigDir, rootDir)
+		: new Map<string, string>()
 
 	return runChecks({
 		packageName: pkg.name,
@@ -44,9 +48,9 @@ export async function analyzePackage(
 		importedPackages,
 		resolvedImports: resolved,
 		dotImports,
-		allWorkspaceNames,
-		referencedPackageNames,
-		hasTsConfig: tsconfig !== null,
+		tsconfigDir,
+		referencedDirs,
+		importTargetDirs,
 		dependencies: pkg.packageJson.dependencies ?? {},
 		peerDependencies: pkg.packageJson.peerDependencies ?? {},
 		devDependencies: pkg.packageJson.devDependencies ?? {},

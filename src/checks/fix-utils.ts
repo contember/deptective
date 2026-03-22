@@ -2,7 +2,6 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Diagnostic } from './types.js'
 import type { FixAction, FixResult } from './rule.js'
-import type { WorkspacePackage } from '../workspace/types.js'
 
 export function groupByPackageDir(diagnostics: Diagnostic[]): Map<string, Diagnostic[]> {
 	const map = new Map<string, Diagnostic[]>()
@@ -54,29 +53,12 @@ export function findTsConfigPath(packageDir: string): string | null {
 	return null
 }
 
-export function computeRefPath(fromDir: string, targetPkg: WorkspacePackage): string | null {
-	// Try src/ subdir first (common convention for project references)
-	const srcTsconfig = path.join(targetPkg.dir, 'src', 'tsconfig.json')
-	if (fs.existsSync(srcTsconfig)) {
-		return path.relative(fromDir, path.join(targetPkg.dir, 'src'))
-	}
-	// Fall back to package root
-	return path.relative(fromDir, targetPkg.dir)
-}
-
-export function getPossibleRefPaths(fromDir: string, targetPkg: WorkspacePackage): string[] {
-	return [
-		path.relative(fromDir, path.join(targetPkg.dir, 'src')),
-		path.relative(fromDir, targetPkg.dir),
-	]
-}
-
 export function removeReferences(content: string, refs: { path: string }[], toRemove: Set<number>): string {
 	for (const idx of [...toRemove].reverse()) {
 		const ref = refs[idx]
 		const escaped = escapeForRegex(ref.path)
 		// Match line with this reference entry, including leading whitespace and trailing comma/newline
-		const lineRe = new RegExp(`[ \\t]*\\{[^}]*"path"\\s*:\\s*"${escaped}"[^}]*\\},?[ \\t]*\\n?`)
+		const lineRe = new RegExp(`[ \\t]+\\{[^}]*"path"\\s*:\\s*"${escaped}"[^}]*\\},?[ \\t]*\\n?`)
 		content = content.replace(lineRe, '')
 	}
 	return content

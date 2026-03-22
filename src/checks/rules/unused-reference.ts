@@ -3,26 +3,26 @@ import * as path from 'node:path'
 import JSON5 from 'json5'
 import type { PackageRule } from '../rule.js'
 import type { FixAction } from '../rule.js'
-import { groupByPackageDir, mergeFixResults, findTsConfigPath, getPossibleRefPaths, removeReferences } from '../fix-utils.js'
+import { groupByPackageDir, mergeFixResults, findTsConfigPath, removeReferences } from '../fix-utils.js'
 
 export const unusedReferenceRule: PackageRule = {
 	id: 'unused-reference',
-	description: 'Tsconfig reference is unused (not imported in source)',
+	description: 'Tsconfig project reference is not used by any import',
 	scope: 'package',
 
 	check(ctx) {
-		if (!ctx.hasTsConfig) return []
+		if (!ctx.tsconfigDir) return []
 		const diagnostics: import('../types.js').Diagnostic[] = []
 
-		for (const ref of ctx.referencedPackageNames) {
-			if (ctx.importedPackages.has(ref)) continue
+		for (const [refDir, refPath] of ctx.referencedDirs) {
+			if (ctx.importTargetDirs.has(refDir)) continue
 
 			diagnostics.push({
 				type: 'unused-reference',
 				packageName: ctx.packageName,
 				packageDir: ctx.packageDir,
-				message: `Tsconfig reference to "${ref}" is unused (not imported in source)`,
-				module: ref,
+				message: `Tsconfig reference "${refPath}" is unused`,
+				module: refPath,
 			})
 		}
 		return diagnostics
@@ -60,11 +60,10 @@ export const unusedReferenceRule: PackageRule = {
 				for (const d of diags) {
 					if (!d.module) continue
 
-					const targetPkg = ctx.packageIndex.get(d.module)
-					if (!targetPkg) continue
-
-					const refPaths = new Set(getPossibleRefPaths(tsconfigDir, targetPkg).map(p => path.resolve(tsconfigDir, p)))
-					const idx = refs.findIndex((r, i) => !toRemove.has(i) && refPaths.has(path.resolve(tsconfigDir, r.path)))
+					const targetAbsDir = path.resolve(tsconfigDir, d.module)
+					const idx = refs.findIndex((r, i) =>
+						!toRemove.has(i) && path.resolve(tsconfigDir, r.path) === targetAbsDir,
+					)
 					if (idx === -1) continue
 
 					toRemove.add(idx)
@@ -72,7 +71,7 @@ export const unusedReferenceRule: PackageRule = {
 						type: d.type,
 						packageName: d.packageName,
 						file: tsconfigPath,
-						description: `remove reference to "${d.module}" (path: "${refs[idx].path}")`,
+						description: `remove reference "${d.module}"`,
 					})
 					fixed++
 				}

@@ -3,27 +3,27 @@ import * as path from 'node:path'
 import JSON5 from 'json5'
 import type { PackageRule } from '../rule.js'
 import type { FixAction } from '../rule.js'
-import { groupByPackageDir, mergeFixResults, findTsConfigPath, computeRefPath, addReference } from '../fix-utils.js'
+import { groupByPackageDir, mergeFixResults, findTsConfigPath, addReference } from '../fix-utils.js'
 
 export const missingReferenceRule: PackageRule = {
 	id: 'missing-reference',
-	description: 'Workspace package imported but not in tsconfig references',
+	description: 'Import requires a tsconfig project reference that is missing',
 	scope: 'package',
 
 	check(ctx) {
-		if (!ctx.hasTsConfig) return []
+		if (!ctx.tsconfigDir) return []
 		const diagnostics: import('../types.js').Diagnostic[] = []
 
-		for (const pkg of ctx.importedPackages) {
-			if (!ctx.allWorkspaceNames.has(pkg)) continue
-			if (ctx.referencedPackageNames.has(pkg)) continue
+		for (const [targetDir, label] of ctx.importTargetDirs) {
+			if (ctx.referencedDirs.has(targetDir)) continue
 
+			const refPath = path.relative(ctx.tsconfigDir, targetDir)
 			diagnostics.push({
 				type: 'missing-reference',
 				packageName: ctx.packageName,
 				packageDir: ctx.packageDir,
-				message: `Workspace package "${pkg}" is imported but not in tsconfig references`,
-				module: pkg,
+				message: `Import of "${label}" requires tsconfig reference (path: "${refPath}")`,
+				module: refPath,
 			})
 		}
 		return diagnostics
@@ -60,13 +60,7 @@ export const missingReferenceRule: PackageRule = {
 				for (const d of diags) {
 					if (!d.module) continue
 
-					const targetPkg = ctx.packageIndex.get(d.module)
-					if (!targetPkg) continue
-
-					const refPath = computeRefPath(tsconfigDir, targetPkg)
-					if (!refPath) continue
-
-					const resolvedNew = path.resolve(tsconfigDir, refPath)
+					const resolvedNew = path.resolve(tsconfigDir, d.module)
 					const alreadyExists = refs.some(r => path.resolve(tsconfigDir, r.path) === resolvedNew)
 					if (alreadyExists) continue
 
@@ -74,10 +68,10 @@ export const missingReferenceRule: PackageRule = {
 						type: d.type,
 						packageName: d.packageName,
 						file: tsconfigPath,
-						description: `add reference to "${d.module}" (path: "${refPath}")`,
+						description: `add reference (path: "${d.module}")`,
 					})
 					if (!ctx.dryRun) {
-						content = addReference(content, refPath)
+						content = addReference(content, d.module)
 					}
 					fixed++
 				}
