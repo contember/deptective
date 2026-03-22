@@ -6,7 +6,7 @@ import { lint } from '../linter.js'
 import { applyFixes, isFixable } from '../fixer.js'
 import { defaultConfig } from '../config/defaults.js'
 import type { DepsLintConfig } from '../config/types.js'
-import type { DiagnosticType } from '../checks/types.js'
+import type { Diagnostic, DiagnosticType } from '../checks/types.js'
 
 function createDir(...parts: string[]) {
 	const dir = join(...parts)
@@ -104,8 +104,8 @@ function createMonorepo() {
 	return root
 }
 
-function diagsByType(diagnostics: { type: DiagnosticType }[]) {
-	const map = new Map<DiagnosticType, typeof diagnostics>()
+function diagsByType(diagnostics: Diagnostic[]) {
+	const map = new Map<DiagnosticType, Diagnostic[]>()
 	for (const d of diagnostics) {
 		const list = map.get(d.type) ?? []
 		list.push(d)
