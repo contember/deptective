@@ -1,3 +1,7 @@
+import type { ResolvedImport } from '../imports/resolver.js'
+import type { ImportRecord } from '../imports/collector.js'
+import type { DepsLintPackageConfig } from '../config/types.js'
+
 export type DiagnosticType =
 	| 'missing-dependency'
 	| 'unused-dependency'
@@ -23,4 +27,20 @@ export interface Diagnostic {
 	message: string
 	file?: string
 	module?: string
+}
+
+export interface CheckContext {
+	packageName: string
+	packageDir: string
+	rootDir: string
+	importedPackages: Set<string>
+	resolvedImports: ResolvedImport[]
+	dotImports: ImportRecord[]
+	allWorkspaceNames: Set<string>
+	referencedPackageNames: Set<string>
+	hasTsConfig: boolean
+	dependencies: Record<string, string>
+	peerDependencies: Record<string, string>
+	devDependencies: Record<string, string>
+	config: DepsLintPackageConfig
 }
