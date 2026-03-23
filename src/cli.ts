@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util'
 import { loadConfig } from './config/loader.js'
 import { lint } from './linter.js'
-import { formatText, formatJson } from './output/formatter.js'
+import { formatText, formatJson, formatSummary, formatFixSummary, formatFixAction, formatError } from './output/formatter.js'
 import { applyFixes, isFixable } from './fixer.js'
 
 const { values } = parseArgs({
@@ -49,7 +49,6 @@ if (fix) {
 		})
 
 		if (dryRun) {
-			// Group actions by package
 			const byPkg = new Map<string, typeof actions>()
 			for (const a of actions) {
 				const list = byPkg.get(a.packageName) ?? []
@@ -60,17 +59,15 @@ if (fix) {
 			for (const [pkg, pkgActions] of byPkg) {
 				console.log(pkg)
 				for (const a of pkgActions) {
-					console.log(`  ${a.description}`)
+					console.log(formatFixAction(a.description))
 				}
 				console.log()
 			}
-			console.log(`Would fix ${fixed} issue(s). Run with --fix to apply.`)
-		} else {
-			console.log(`Fixed ${fixed} issue(s).`)
 		}
+		console.log(formatFixSummary(fixed, dryRun))
 
 		for (const err of errors) {
-			console.error(`  error: ${err}`)
+			console.error(formatError(err))
 		}
 	}
 
@@ -81,27 +78,27 @@ if (fix) {
 	// Re-lint to show remaining issues
 	const after = await lint(cwd, config, values.filter as string | undefined)
 	if (after.diagnostics.length === 0) {
-		console.log(`Checked ${after.packageCount} package(s), no issues found.`)
+		console.log(formatSummary(0, after.packageCount))
 		process.exit(0)
 	}
 
 	const output = (values.format as string) === 'json'
 		? formatJson(after.diagnostics)
-		: formatText(after.diagnostics)
+		: formatText(after.diagnostics, cwd)
 	console.log(output)
-	console.log(`${after.diagnostics.length} issue(s) remaining in ${after.packageCount} package(s).`)
+	console.log(formatSummary(after.diagnostics.length, after.packageCount))
 	process.exit(1)
 }
 
 if (result.diagnostics.length === 0) {
-	console.log(`Checked ${result.packageCount} package(s), no issues found.`)
+	console.log(formatSummary(0, result.packageCount))
 	process.exit(0)
 }
 
 const output = (values.format as string) === 'json'
 	? formatJson(result.diagnostics)
-	: formatText(result.diagnostics)
+	: formatText(result.diagnostics, cwd)
 
 console.log(output)
-console.log(`Found ${result.diagnostics.length} issue(s) in ${result.packageCount} package(s).`)
+console.log(formatSummary(result.diagnostics.length, result.packageCount))
 process.exit(1)
