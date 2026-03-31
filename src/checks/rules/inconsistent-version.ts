@@ -11,44 +11,55 @@ export const inconsistentVersionRule: WorkspaceRule = {
 		const diagnostics: Diagnostic[] = []
 		const nameSet = new Set(packages.map(p => p.name))
 
-		// Collect all external dep versions across workspace: depName -> Map<version, packageNames[]>
-		const versionMap = new Map<string, Map<string, string[]>>()
+		// Collect versions separately for dependencies and peerDependencies
+		const depsMap = new Map<string, Map<string, string[]>>()
+		const peerDepsMap = new Map<string, Map<string, string[]>>()
 
 		for (const pkg of packages) {
 			for (const [dep, version] of Object.entries(pkg.packageJson.dependencies ?? {})) {
 				if (nameSet.has(dep)) continue // skip workspace deps
 				if (isWorkspaceProtocol(version)) continue
-				addVersion(versionMap, dep, normalizeVersion(version), pkg.name)
+				addVersion(depsMap, dep, normalizeVersion(version), pkg.name)
 			}
 			for (const [dep, version] of Object.entries(pkg.packageJson.peerDependencies ?? {})) {
 				if (nameSet.has(dep)) continue
 				if (isWorkspaceProtocol(version)) continue
-				addVersion(versionMap, dep, normalizeVersion(version), pkg.name)
+				if (isOpenRange(version)) continue
+				addVersion(peerDepsMap, dep, normalizeVersion(version), pkg.name)
 			}
 		}
 
-		for (const [dep, versions] of versionMap) {
-			if (versions.size <= 1) continue
-
-			const details = [...versions.entries()]
-				.map(([v, pkgs]) => `${v} (${pkgs.join(', ')})`)
-				.join(', ')
-
-			// Report on the first package that uses each version
-			const firstPkg = [...versions.values()][0][0]
-			const firstPkgData = packages.find(p => p.name === firstPkg)
-
-			diagnostics.push({
-				type: 'inconsistent-version',
-				packageName: firstPkg,
-				packageDir: firstPkgData?.dir ?? '',
-				message: `Inconsistent versions of "${dep}": ${details}`,
-				module: dep,
-			})
-		}
+		reportInconsistencies(depsMap, packages, diagnostics)
+		reportInconsistencies(peerDepsMap, packages, diagnostics)
 
 		return diagnostics
 	},
+}
+
+function reportInconsistencies(
+	versionMap: Map<string, Map<string, string[]>>,
+	packages: WorkspacePackage[],
+	diagnostics: Diagnostic[],
+) {
+	for (const [dep, versions] of versionMap) {
+		if (versions.size <= 1) continue
+
+		const details = [...versions.entries()]
+			.map(([v, pkgs]) => `${v} (${pkgs.join(', ')})`)
+			.join(', ')
+
+		// Report on the first package that uses each version
+		const firstPkg = [...versions.values()][0][0]
+		const firstPkgData = packages.find(p => p.name === firstPkg)
+
+		diagnostics.push({
+			type: 'inconsistent-version',
+			packageName: firstPkg,
+			packageDir: firstPkgData?.dir ?? '',
+			message: `Inconsistent versions of "${dep}": ${details}`,
+			module: dep,
+		})
+	}
 }
 
 function addVersion(map: Map<string, Map<string, string[]>>, dep: string, version: string, pkg: string) {
@@ -60,6 +71,10 @@ function addVersion(map: Map<string, Map<string, string[]>>, dep: string, versio
 
 function isWorkspaceProtocol(version: string): boolean {
 	return version.startsWith('workspace:') || version.startsWith('catalog:')
+}
+
+function isOpenRange(version: string): boolean {
+	return version === '*' || version.startsWith('>=') || version.startsWith('>')
 }
 
 function normalizeVersion(version: string): string {

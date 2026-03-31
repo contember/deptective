@@ -119,13 +119,37 @@ describe('inconsistent-version', () => {
 		expect(inconsistentVersionRule.check(packages)).toHaveLength(0)
 	})
 
-	test('checks peerDependencies too', () => {
+	test('checks peerDependencies against each other', () => {
 		const packages = [
-			createPackage('a', { react: '^18.0.0' }),
+			createPackage('a', {}, { react: '^18.0.0' }),
 			createPackage('b', {}, { react: '^17.0.0' }),
 		]
 		const diags = inconsistentVersionRule.check(packages)
 		expect(diags).toHaveLength(1)
 		expect(diags[0].module).toBe('react')
+	})
+
+	test('does not compare dependencies against peerDependencies', () => {
+		const packages = [
+			createPackage('a', { react: '19.2.4' }),
+			createPackage('b', {}, { react: '^18.0.0' }),
+		]
+		expect(inconsistentVersionRule.check(packages)).toHaveLength(0)
+	})
+
+	test('ignores open ranges in peerDependencies', () => {
+		const packages = [
+			createPackage('a', {}, { react: '19.2.4' }),
+			createPackage('b', {}, { react: '>=19' }),
+		]
+		expect(inconsistentVersionRule.check(packages)).toHaveLength(0)
+	})
+
+	test('ignores wildcard peerDependencies', () => {
+		const packages = [
+			createPackage('a', {}, { react: '19.2.4' }),
+			createPackage('b', {}, { react: '*' }),
+		]
+		expect(inconsistentVersionRule.check(packages)).toHaveLength(0)
 	})
 })
