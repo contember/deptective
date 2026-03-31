@@ -6,14 +6,15 @@ import * as path from 'node:path'
  * Returns:
  * - true: subpath is explicitly exported
  * - false: package has exports but this subpath is not exported
- * - null: package has no exports field (can't validate)
+ * - null: package.json not found or has no exports field (can't validate)
  */
 export function isSubpathExported(
 	packageName: string,
 	subpath: string,
+	packageDir: string,
 	rootDir: string,
 ): boolean | null {
-	const exports = readPackageExports(packageName, rootDir)
+	const exports = readPackageExports(packageName, packageDir, rootDir)
 	if (exports === null) return null
 
 	const importPath = '.' + subpath // subpath is like "/client", we need "./client"
@@ -22,24 +23,34 @@ export function isSubpathExported(
 
 type ExportsField = string | string[] | { [key: string]: ExportsField } | null
 
-function readPackageExports(packageName: string, rootDir: string): ExportsField | null {
-	// Try to find the package's package.json
-	const candidates = [
-		path.join(rootDir, 'node_modules', packageName, 'package.json'),
-		// For scoped packages in hoisted layouts
-		path.join(rootDir, 'node_modules', ...packageName.split('/'), 'package.json'),
-	]
+function readPackageExports(packageName: string, packageDir: string, rootDir: string): ExportsField | null {
+	const pkgJsonPath = findPackageJson(packageName, packageDir, rootDir)
+	if (!pkgJsonPath) return null
 
-	for (const candidate of candidates) {
-		if (fs.existsSync(candidate)) {
-			try {
-				const pkg = JSON.parse(fs.readFileSync(candidate, 'utf-8'))
-				return pkg.exports ?? null
-			} catch {
-				return null
-			}
-		}
+	try {
+		const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'))
+		return pkg.exports ?? null
+	} catch {
+		return null
 	}
+}
+
+/**
+ * Find a dependency's package.json by walking up from packageDir to rootDir,
+ * checking node_modules at each level (standard Node.js resolution).
+ */
+function findPackageJson(packageName: string, packageDir: string, rootDir: string): string | null {
+	const resolvedRoot = path.resolve(rootDir)
+	let dir = path.resolve(packageDir)
+
+	while (true) {
+		const candidate = path.join(dir, 'node_modules', packageName, 'package.json')
+		if (fs.existsSync(candidate)) return candidate
+
+		if (dir === resolvedRoot || dir === path.dirname(dir)) break
+		dir = path.dirname(dir)
+	}
+
 	return null
 }
 

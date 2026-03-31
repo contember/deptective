@@ -18,7 +18,7 @@ export const forbiddenDirectoryImportRule: PackageRule = {
 
 			const cacheKey = imp.fullSpecifier
 			if (!exportsCache.has(cacheKey)) {
-				exportsCache.set(cacheKey, isSubpathExported(imp.packageName, imp.subpath, ctx.rootDir))
+				exportsCache.set(cacheKey, isSubpathExported(imp.packageName, imp.subpath, ctx.packageDir, ctx.rootDir))
 			}
 			const exported = exportsCache.get(cacheKey)
 			if (exported === true) continue

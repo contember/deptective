@@ -271,12 +271,37 @@ describe('forbidden-directory-import', () => {
 		}))
 
 		const ctx = createContext({
+			packageDir: dir,
 			rootDir: dir,
 			resolvedImports: [createImport({
 				packageName: 'foo',
 				hasSubpath: true,
 				subpath: '/client',
 				fullSpecifier: 'foo/client',
+			})],
+		})
+		expect(forbiddenDirectoryImportRule.check(ctx)).toHaveLength(0)
+	})
+
+	test('finds node_modules by walking up from packageDir to rootDir', () => {
+		const root = mkdtempSync(join(tmpdir(), 'deptective-'))
+		const pkgDir = join(root, 'packages', 'app')
+		mkdirSync(pkgDir, { recursive: true })
+		// node_modules is hoisted to root
+		mkdirSync(join(root, 'node_modules', 'bar'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'bar', 'package.json'), JSON.stringify({
+			name: 'bar',
+			exports: { '.': './index.js', './utils': './utils.js' },
+		}))
+
+		const ctx = createContext({
+			packageDir: pkgDir,
+			rootDir: root,
+			resolvedImports: [createImport({
+				packageName: 'bar',
+				hasSubpath: true,
+				subpath: '/utils',
+				fullSpecifier: 'bar/utils',
 			})],
 		})
 		expect(forbiddenDirectoryImportRule.check(ctx)).toHaveLength(0)
