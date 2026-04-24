@@ -1,6 +1,9 @@
 import type { PackageRule } from '../rule.js'
 import type { Diagnostic } from '../types.js'
 import { isSubpathExported } from '../../exports/resolver.js'
+import { minimatch } from '../../utils/minimatch.js'
+
+const GLOB_CHARS = /[*?]/
 
 export const forbiddenDirectoryImportRule: PackageRule = {
 	id: 'forbidden-directory-import',
@@ -9,12 +12,18 @@ export const forbiddenDirectoryImportRule: PackageRule = {
 
 	check(ctx) {
 		const diagnostics: Diagnostic[] = []
-		const allowed = new Set(ctx.config.allowedDirectoryImports)
+		const exactAllowed = new Set<string>()
+		const globAllowed: string[] = []
+		for (const pattern of ctx.config.allowedDirectoryImports) {
+			if (GLOB_CHARS.test(pattern)) globAllowed.push(pattern)
+			else exactAllowed.add(pattern)
+		}
 		const exportsCache = new Map<string, boolean | null>()
 
 		for (const imp of ctx.resolvedImports) {
 			if (!imp.hasSubpath || !imp.subpath) continue
-			if (allowed.has(imp.fullSpecifier)) continue
+			if (exactAllowed.has(imp.fullSpecifier)) continue
+			if (globAllowed.some(pattern => minimatch(imp.fullSpecifier, pattern))) continue
 
 			const cacheKey = imp.fullSpecifier
 			if (!exportsCache.has(cacheKey)) {

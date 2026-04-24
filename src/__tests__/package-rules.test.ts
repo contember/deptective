@@ -262,6 +262,27 @@ describe('forbidden-directory-import', () => {
 		expect(forbiddenDirectoryImportRule.check(ctx)).toHaveLength(0)
 	})
 
+	test('does not report when fullSpecifier matches a glob in allowedDirectoryImports', () => {
+		const ctx = createContext({
+			resolvedImports: [
+				createImport({ hasSubpath: true, subpath: '/components/Button', fullSpecifier: 'foo/components/Button' }),
+				createImport({ hasSubpath: true, subpath: '/components/nested/Card', fullSpecifier: 'foo/components/nested/Card' }),
+			],
+			config: { ...createContext().config, allowedDirectoryImports: ['foo/**'] },
+		})
+		expect(forbiddenDirectoryImportRule.check(ctx)).toHaveLength(0)
+	})
+
+	test('glob in allowedDirectoryImports only matches intended prefix', () => {
+		const ctx = createContext({
+			resolvedImports: [
+				createImport({ packageName: 'bar', hasSubpath: true, subpath: '/internal', fullSpecifier: 'bar/internal' }),
+			],
+			config: { ...createContext().config, allowedDirectoryImports: ['foo/**'] },
+		})
+		expect(forbiddenDirectoryImportRule.check(ctx)).toHaveLength(1)
+	})
+
 	test('does not report if subpath is exported', () => {
 		const dir = mkdtempSync(join(tmpdir(), 'deptective-'))
 		mkdirSync(join(dir, 'node_modules', 'foo'), { recursive: true })

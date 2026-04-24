@@ -111,8 +111,8 @@ export default {
   // Dependencies that are allowed to be unused
   allowedUnusedDependencies: ['@types/node'],
 
-  // Subpath imports that are allowed (e.g. foo/client)
-  allowedDirectoryImports: ['@mui/material/Button'],
+  // Subpath imports that are allowed (exact match or glob, e.g. foo/client, foo/**)
+  allowedDirectoryImports: ['@mui/material/Button', '@my-org/mockup/**'],
 
   // Glob patterns for source files to scan
   sourcePatterns: ['src/**/*.{ts,tsx}'],
@@ -154,7 +154,7 @@ export default {
 |--------|------|---------|-------------|
 | `globalModules` | `string[]` | `[]` | Modules that don't need to be in dependencies |
 | `allowedUnusedDependencies` | `string[]` | `[]` | Dependencies allowed to be unused |
-| `allowedDirectoryImports` | `string[]` | `[]` | Subpath imports that are allowed |
+| `allowedDirectoryImports` | `string[]` | `[]` | Subpath imports that are allowed — exact strings or glob patterns (`*`, `**`, `?`) |
 | `sourcePatterns` | `string[]` | `['src/**/*.{ts,tsx}']` | Source file glob patterns |
 | `excludePatterns` | `string[]` | `['**/*.d.ts', '**/generated/**']` | Excluded file glob patterns |
 | `ignoredPackages` | `string[]` | `[]` | Packages to skip |
