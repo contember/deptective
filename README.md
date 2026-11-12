@@ -155,7 +155,7 @@ export default {
 | `globalModules` | `string[]` | `[]` | Modules that don't need to be in dependencies |
 | `allowedUnusedDependencies` | `string[]` | `[]` | Dependencies allowed to be unused |
 | `allowedDirectoryImports` | `string[]` | `[]` | Subpath imports that are allowed — exact strings or glob patterns (`*`, `**`, `?`) |
-| `sourcePatterns` | `string[]` | `['src/**/*.{ts,tsx}']` | Source file glob patterns; add `astro` (e.g. `src/**/*.{ts,tsx,astro}`) to scan Astro components (only the frontmatter and `<script>` bodies are parsed) |
+| `sourcePatterns` | `string[]` | `['src/**/*.{ts,tsx}']` | Source file glob patterns; add `astro` (e.g. `src/**/*.{ts,tsx,astro}`) to scan Astro components (only the frontmatter and the bodies of `<script>` tags without attributes, which Astro bundles, are parsed) |
 | `excludePatterns` | `string[]` | `['**/*.d.ts', '**/generated/**']` | Excluded file glob patterns |
 | `ignoredPackages` | `string[]` | `[]` | Packages to skip |
 | `tsconfigPath` | `string \| null` | `null` | Custom tsconfig path |

@@ -169,7 +169,7 @@ const items = ['a', 'b']
 		).toEqual(['first-pkg', 'second-pkg'])
 	})
 
-	test('ignores inline scripts: any attribute besides src keeps Astro from bundling them', async () => {
+	test('ignores inline scripts: an attribute keeps Astro from bundling the body', async () => {
 		expect(
 			await specifiersOf(`
 <script type="module">import 'module-pkg'</script>
@@ -187,6 +187,40 @@ const items = ['a', 'b']
 <p />
 <script>import 'b-pkg'</script>
 <!-- x -->
+`),
+		).toEqual(['a-pkg', 'b-pkg'])
+	})
+
+	test('a src script bundles its file, not its body, and an uppercase SRC is inline', async () => {
+		expect(
+			await specifiersOf(`
+<script src="./a.ts">import 'src-body-pkg'</script>
+<script SRC="./a.ts">import 'upper-src-pkg'</script>
+<script>import 'bundled-pkg'</script>
+`),
+		).toEqual(['bundled-pkg'])
+	})
+
+	test('a self-closing <script /> does not swallow the markup after it', async () => {
+		expect(
+			await specifiersOf(`
+<script src="./a.ts" />
+<script/>
+<ul>{items.map((i) => <li>{i}</li>)}</ul>
+<code>import D from 'text-pkg'</code>
+<script is:inline>import 'inline-pkg'</script>
+<script>import 'after-pkg'</script>
+`),
+		).toEqual(['after-pkg'])
+	})
+
+	test('<script-foo> is another element, and a closing tag matches in any case', async () => {
+		expect(
+			await specifiersOf(`
+<script-foo>import 'custom-element-pkg'</script-foo>
+<script>import 'a-pkg'</SCRIPT>
+<p>import('text-pkg')</p>
+<script>import 'b-pkg'</script>
 `),
 		).toEqual(['a-pkg', 'b-pkg'])
 	})

@@ -92,16 +92,11 @@ function astroCodeSections(content: string): string[] {
 	}
 	const template = lines.slice(templateStart).join('\n')
 	// One scan, so a `<!--` inside a script is script text, and a script inside a comment is skipped.
-	// Lowercase only: `<Script>` is a component in Astro.
-	for (const match of template.matchAll(/<!--[\s\S]*?-->|<script\b([^>]*)>([\s\S]*?)<\/script\s*>/g)) {
-		const [, attributes, body] = match
-		if (body !== undefined && isBundledScript(attributes ?? '')) sections.push(body)
+	// The open tag is lowercase only (`<Script>` is a component) and may self-close; the closing tag is any case.
+	const scripts = /<!--[\s\S]*?-->|<script(?=[\s/>])((?:"[^"]*"|'[^']*'|[^>"'])*?)(?:\/>|>([\s\S]*?)<\/[sS][cC][rR][iI][pP][tT]\s*>)/g
+	for (const [, attributes, body] of template.matchAll(scripts)) {
+		// Astro bundles a body only without attributes: with `src` it bundles the file, any other attribute makes it inline.
+		if (body !== undefined && attributes?.trim() === '') sections.push(body)
 	}
 	return sections
-}
-
-/** Astro bundles a `<script>` only when it has no attribute besides `src`; any other attribute makes it inline. */
-function isBundledScript(attributes: string): boolean {
-	const names = [...attributes.matchAll(/([^\s=/]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g)].map(m => m[1]?.toLowerCase())
-	return names.every(name => name === 'src')
 }
