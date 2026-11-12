@@ -19,7 +19,9 @@ export async function collectImports(packageDir: string, sourcePatterns: string[
 
 	await Promise.all(files.map(async file => {
 		const content = await fs.readFile(file, 'utf-8')
-		const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.ESNext)
+		const sourceFiles = file.endsWith('.astro')
+			? astroCodeSections(content).map(code => ts.createSourceFile(file, code, ts.ScriptTarget.ESNext, false, ts.ScriptKind.TS))
+			: [ts.createSourceFile(file, content, ts.ScriptTarget.ESNext)]
 
 		const visit = (node: ts.Node) => {
 			// import ... from 'specifier'  /  import type ... from 'specifier'
@@ -65,8 +67,36 @@ export async function collectImports(packageDir: string, sourcePatterns: string[
 			}
 			ts.forEachChild(node, visit)
 		}
-		ts.forEachChild(sourceFile, visit)
+		for (const sourceFile of sourceFiles) ts.forEachChild(sourceFile, visit)
 	}))
 
 	return records
+}
+
+/**
+ * The parts of an Astro component that hold module code: the frontmatter and the body of each `<script>`
+ * that Astro bundles. The markup is left out, because parsing it as TypeScript misreads JSX-like
+ * expressions and prose.
+ */
+function astroCodeSections(content: string): string[] {
+	const sections: string[] = []
+	const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/)
+	const start = lines.findIndex(line => line.trim() !== '')
+	let templateStart = 0
+	if (start !== -1 && lines[start]?.trim() === '---') {
+		const end = lines.findIndex((line, i) => i > start && line.trim() === '---')
+		// Without a closing fence, Astro reads the rest of the file as frontmatter.
+		const frontmatterEnd = end === -1 ? lines.length : end
+		sections.push(lines.slice(start + 1, frontmatterEnd).join('\n'))
+		templateStart = frontmatterEnd + 1
+	}
+	const template = lines.slice(templateStart).join('\n')
+	// One scan, so a `<!--` inside a script is script text, and a script inside a comment is skipped.
+	// The open tag is lowercase only (`<Script>` is a component) and may self-close; the closing tag is any case.
+	const scripts = /<!--[\s\S]*?-->|<script(?=[\s/>])((?:"[^"]*"|'[^']*'|[^>"'])*?)(?:\/>|>([\s\S]*?)<\/[sS][cC][rR][iI][pP][tT]\s*>)/g
+	for (const [, attributes, body] of template.matchAll(scripts)) {
+		// Astro bundles a body only without attributes: with `src` it bundles the file, any other attribute makes it inline.
+		if (body !== undefined && attributes?.trim() === '') sections.push(body)
+	}
+	return sections
 }

@@ -114,6 +114,166 @@ describe('collectImports', () => {
 
 })
 
+// --- collectImports: .astro components ---
+
+describe('collectImports in .astro files', () => {
+	const specifiersOf = async (component: string) => {
+		const dir = createPkg({ 'Component.astro': component })
+		const records = await collectImports(dir, ['src/**/*.astro'], [])
+		return records.map(r => r.specifier).sort()
+	}
+
+	test('collects static, type-only and dynamic imports from the frontmatter', async () => {
+		const dir = createPkg({
+			'Component.astro': `
+---
+import Card from 'card-pkg'
+import type { Props } from 'types-pkg'
+const { render } = await import('dynamic-pkg')
+---
+<Card />
+`,
+		})
+		const records = await collectImports(dir, ['src/**/*.astro'], [])
+		expect(records.map(r => [r.specifier, r.isTypeOnly])).toEqual([
+			['card-pkg', false],
+			['types-pkg', true],
+			['dynamic-pkg', false],
+		])
+	})
+
+	test('collects a <script> import that follows JSX-like markup', async () => {
+		expect(
+			await specifiersOf(`
+---
+const items = ['a', 'b']
+---
+<ul>{items.map((i) => <li>{i}</li>)}</ul>
+<p>It's \`quoted\` text /* not a comment</p>
+<script>
+	import { init } from 'script-pkg'
+	init()
+</script>
+`),
+		).toEqual(['script-pkg'])
+	})
+
+	test('collects imports from every <script> Astro bundles', async () => {
+		expect(
+			await specifiersOf(`
+<script>import 'first-pkg'</script>
+<div />
+<script >import { b } from 'second-pkg'</script >
+<script src="./local.ts"></script>
+`),
+		).toEqual(['first-pkg', 'second-pkg'])
+	})
+
+	test('ignores inline scripts: an attribute keeps Astro from bundling the body', async () => {
+		expect(
+			await specifiersOf(`
+<script type="module">import 'module-pkg'</script>
+<script is:inline>import 'inline-pkg'</script>
+<script define:vars={{ x: 1 }}>import 'vars-pkg'</script>
+<script>import 'bundled-pkg'</script>
+`),
+		).toEqual(['bundled-pkg'])
+	})
+
+	test('a <!-- inside a script does not hide the scripts after it', async () => {
+		expect(
+			await specifiersOf(`
+<script>const s = '<!--'; import 'a-pkg'</script>
+<p />
+<script>import 'b-pkg'</script>
+<!-- x -->
+`),
+		).toEqual(['a-pkg', 'b-pkg'])
+	})
+
+	test('a src script bundles its file, not its body, and an uppercase SRC is inline', async () => {
+		expect(
+			await specifiersOf(`
+<script src="./a.ts">import 'src-body-pkg'</script>
+<script SRC="./a.ts">import 'upper-src-pkg'</script>
+<script>import 'bundled-pkg'</script>
+`),
+		).toEqual(['bundled-pkg'])
+	})
+
+	test('a self-closing <script /> does not swallow the markup after it', async () => {
+		expect(
+			await specifiersOf(`
+<script src="./a.ts" />
+<script/>
+<ul>{items.map((i) => <li>{i}</li>)}</ul>
+<code>import D from 'text-pkg'</code>
+<script is:inline>import 'inline-pkg'</script>
+<script>import 'after-pkg'</script>
+`),
+		).toEqual(['after-pkg'])
+	})
+
+	test('<script-foo> is another element, and a closing tag matches in any case', async () => {
+		expect(
+			await specifiersOf(`
+<script-foo>import 'custom-element-pkg'</script-foo>
+<script>import 'a-pkg'</SCRIPT>
+<p>import('text-pkg')</p>
+<script>import 'b-pkg'</script>
+`),
+		).toEqual(['a-pkg', 'b-pkg'])
+	})
+
+	test('a capitalized <Script> is a component, not a script', async () => {
+		expect(await specifiersOf(`<Script>import 'component-child-pkg'</Script>`)).toEqual([])
+	})
+
+	test('frontmatter without a closing fence runs to the end of the file', async () => {
+		expect(
+			await specifiersOf(`
+---
+import a from 'open-pkg'
+const html = '<script>import "fake-pkg"</script>'
+`),
+		).toEqual(['open-pkg'])
+	})
+
+	test('reads frontmatter after a BOM and leading blank lines, with CRLF line ends', async () => {
+		const dir = createPkg({})
+		writeFileSync(join(dir, 'src', 'Component.astro'), '\uFEFF\r\n\r\n---\r\nimport a from \'crlf-pkg\'\r\n---\r\n<p />\r\n')
+		const records = await collectImports(dir, ['src/**/*.astro'], [])
+		expect(records.map(r => r.specifier)).toEqual(['crlf-pkg'])
+	})
+
+	test('ignores import-like text in the markup', async () => {
+		expect(
+			await specifiersOf(`
+---
+import Layout from 'layout-pkg'
+---
+<Layout>
+	<code>import D from 'text-pkg'</code>
+	<p>call import('text-call-pkg') or require('text-require-pkg')</p>
+</Layout>
+`),
+		).toEqual(['layout-pkg'])
+	})
+
+	test('ignores a <script> inside an HTML comment', async () => {
+		expect(
+			await specifiersOf(`
+<!-- <script>import 'commented-pkg'</script> -->
+<script>import 'live-pkg'</script>
+`),
+		).toEqual(['live-pkg'])
+	})
+
+	test('a component without frontmatter or scripts has no imports', async () => {
+		expect(await specifiersOf(`<p>import x from 'nothing-pkg'</p>`)).toEqual([])
+	})
+})
+
 // --- resolveImports ---
 
 describe('resolveImports', () => {
