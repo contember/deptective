@@ -74,8 +74,9 @@ export async function collectImports(packageDir: string, sourcePatterns: string[
 }
 
 /**
- * The parts of an Astro component that hold module code: the frontmatter and the body of each `<script>`.
- * The markup is left out, because parsing it as TypeScript misreads JSX-like expressions and prose.
+ * The parts of an Astro component that hold module code: the frontmatter and the body of each `<script>`
+ * that Astro bundles. The markup is left out, because parsing it as TypeScript misreads JSX-like
+ * expressions and prose.
  */
 function astroCodeSections(content: string): string[] {
 	const sections: string[] = []
@@ -84,14 +85,23 @@ function astroCodeSections(content: string): string[] {
 	let templateStart = 0
 	if (start !== -1 && lines[start]?.trim() === '---') {
 		const end = lines.findIndex((line, i) => i > start && line.trim() === '---')
-		if (end !== -1) {
-			sections.push(lines.slice(start + 1, end).join('\n'))
-			templateStart = end + 1
-		}
+		// Without a closing fence, Astro reads the rest of the file as frontmatter.
+		const frontmatterEnd = end === -1 ? lines.length : end
+		sections.push(lines.slice(start + 1, frontmatterEnd).join('\n'))
+		templateStart = frontmatterEnd + 1
 	}
-	const template = lines.slice(templateStart).join('\n').replace(/<!--[\s\S]*?-->/g, '')
-	for (const match of template.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-		sections.push(match[1] ?? '')
+	const template = lines.slice(templateStart).join('\n')
+	// One scan, so a `<!--` inside a script is script text, and a script inside a comment is skipped.
+	// Lowercase only: `<Script>` is a component in Astro.
+	for (const match of template.matchAll(/<!--[\s\S]*?-->|<script\b([^>]*)>([\s\S]*?)<\/script\s*>/g)) {
+		const [, attributes, body] = match
+		if (body !== undefined && isBundledScript(attributes ?? '')) sections.push(body)
 	}
 	return sections
+}
+
+/** Astro bundles a `<script>` only when it has no attribute besides `src`; any other attribute makes it inline. */
+function isBundledScript(attributes: string): boolean {
+	const names = [...attributes.matchAll(/([^\s=/]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g)].map(m => m[1]?.toLowerCase())
+	return names.every(name => name === 'src')
 }

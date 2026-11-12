@@ -158,14 +158,58 @@ const items = ['a', 'b']
 		).toEqual(['script-pkg'])
 	})
 
-	test('collects imports from every <script>, including one with attributes', async () => {
+	test('collects imports from every <script> Astro bundles', async () => {
 		expect(
 			await specifiersOf(`
 <script>import 'first-pkg'</script>
 <div />
-<script type="module" data-foo="bar">import { b } from 'second-pkg'</script>
+<script >import { b } from 'second-pkg'</script >
+<script src="./local.ts"></script>
 `),
 		).toEqual(['first-pkg', 'second-pkg'])
+	})
+
+	test('ignores inline scripts: any attribute besides src keeps Astro from bundling them', async () => {
+		expect(
+			await specifiersOf(`
+<script type="module">import 'module-pkg'</script>
+<script is:inline>import 'inline-pkg'</script>
+<script define:vars={{ x: 1 }}>import 'vars-pkg'</script>
+<script>import 'bundled-pkg'</script>
+`),
+		).toEqual(['bundled-pkg'])
+	})
+
+	test('a <!-- inside a script does not hide the scripts after it', async () => {
+		expect(
+			await specifiersOf(`
+<script>const s = '<!--'; import 'a-pkg'</script>
+<p />
+<script>import 'b-pkg'</script>
+<!-- x -->
+`),
+		).toEqual(['a-pkg', 'b-pkg'])
+	})
+
+	test('a capitalized <Script> is a component, not a script', async () => {
+		expect(await specifiersOf(`<Script>import 'component-child-pkg'</Script>`)).toEqual([])
+	})
+
+	test('frontmatter without a closing fence runs to the end of the file', async () => {
+		expect(
+			await specifiersOf(`
+---
+import a from 'open-pkg'
+const html = '<script>import "fake-pkg"</script>'
+`),
+		).toEqual(['open-pkg'])
+	})
+
+	test('reads frontmatter after a BOM and leading blank lines, with CRLF line ends', async () => {
+		const dir = createPkg({})
+		writeFileSync(join(dir, 'src', 'Component.astro'), '\uFEFF\r\n\r\n---\r\nimport a from \'crlf-pkg\'\r\n---\r\n<p />\r\n')
+		const records = await collectImports(dir, ['src/**/*.astro'], [])
+		expect(records.map(r => r.specifier)).toEqual(['crlf-pkg'])
 	})
 
 	test('ignores import-like text in the markup', async () => {
