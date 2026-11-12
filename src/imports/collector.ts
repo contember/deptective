@@ -19,7 +19,9 @@ export async function collectImports(packageDir: string, sourcePatterns: string[
 
 	await Promise.all(files.map(async file => {
 		const content = await fs.readFile(file, 'utf-8')
-		const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.ESNext)
+		const sourceFiles = file.endsWith('.astro')
+			? astroCodeSections(content).map(code => ts.createSourceFile(file, code, ts.ScriptTarget.ESNext, false, ts.ScriptKind.TS))
+			: [ts.createSourceFile(file, content, ts.ScriptTarget.ESNext)]
 
 		const visit = (node: ts.Node) => {
 			// import ... from 'specifier'  /  import type ... from 'specifier'
@@ -65,8 +67,31 @@ export async function collectImports(packageDir: string, sourcePatterns: string[
 			}
 			ts.forEachChild(node, visit)
 		}
-		ts.forEachChild(sourceFile, visit)
+		for (const sourceFile of sourceFiles) ts.forEachChild(sourceFile, visit)
 	}))
 
 	return records
+}
+
+/**
+ * The parts of an Astro component that hold module code: the frontmatter and the body of each `<script>`.
+ * The markup is left out, because parsing it as TypeScript misreads JSX-like expressions and prose.
+ */
+function astroCodeSections(content: string): string[] {
+	const sections: string[] = []
+	const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/)
+	const start = lines.findIndex(line => line.trim() !== '')
+	let templateStart = 0
+	if (start !== -1 && lines[start]?.trim() === '---') {
+		const end = lines.findIndex((line, i) => i > start && line.trim() === '---')
+		if (end !== -1) {
+			sections.push(lines.slice(start + 1, end).join('\n'))
+			templateStart = end + 1
+		}
+	}
+	const template = lines.slice(templateStart).join('\n').replace(/<!--[\s\S]*?-->/g, '')
+	for (const match of template.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+		sections.push(match[1] ?? '')
+	}
+	return sections
 }

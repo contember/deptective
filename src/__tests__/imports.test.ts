@@ -114,6 +114,88 @@ describe('collectImports', () => {
 
 })
 
+// --- collectImports: .astro components ---
+
+describe('collectImports in .astro files', () => {
+	const specifiersOf = async (component: string) => {
+		const dir = createPkg({ 'Component.astro': component })
+		const records = await collectImports(dir, ['src/**/*.astro'], [])
+		return records.map(r => r.specifier).sort()
+	}
+
+	test('collects static, type-only and dynamic imports from the frontmatter', async () => {
+		const dir = createPkg({
+			'Component.astro': `
+---
+import Card from 'card-pkg'
+import type { Props } from 'types-pkg'
+const { render } = await import('dynamic-pkg')
+---
+<Card />
+`,
+		})
+		const records = await collectImports(dir, ['src/**/*.astro'], [])
+		expect(records.map(r => [r.specifier, r.isTypeOnly])).toEqual([
+			['card-pkg', false],
+			['types-pkg', true],
+			['dynamic-pkg', false],
+		])
+	})
+
+	test('collects a <script> import that follows JSX-like markup', async () => {
+		expect(
+			await specifiersOf(`
+---
+const items = ['a', 'b']
+---
+<ul>{items.map((i) => <li>{i}</li>)}</ul>
+<p>It's \`quoted\` text /* not a comment</p>
+<script>
+	import { init } from 'script-pkg'
+	init()
+</script>
+`),
+		).toEqual(['script-pkg'])
+	})
+
+	test('collects imports from every <script>, including one with attributes', async () => {
+		expect(
+			await specifiersOf(`
+<script>import 'first-pkg'</script>
+<div />
+<script type="module" data-foo="bar">import { b } from 'second-pkg'</script>
+`),
+		).toEqual(['first-pkg', 'second-pkg'])
+	})
+
+	test('ignores import-like text in the markup', async () => {
+		expect(
+			await specifiersOf(`
+---
+import Layout from 'layout-pkg'
+---
+<Layout>
+	<code>import D from 'text-pkg'</code>
+	<p>call import('text-call-pkg') or require('text-require-pkg')</p>
+</Layout>
+`),
+		).toEqual(['layout-pkg'])
+	})
+
+	test('ignores a <script> inside an HTML comment', async () => {
+		expect(
+			await specifiersOf(`
+<!-- <script>import 'commented-pkg'</script> -->
+<script>import 'live-pkg'</script>
+`),
+		).toEqual(['live-pkg'])
+	})
+
+	test('a component without frontmatter or scripts has no imports', async () => {
+		expect(await specifiersOf(`<p>import x from 'nothing-pkg'</p>`)).toEqual([])
+	})
+})
+
 // --- resolveImports ---
 
 describe('resolveImports', () => {
